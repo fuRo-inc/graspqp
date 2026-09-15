@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 from graspqp.core import ObjectModel
 from graspqp.core.energy import calculate_energy
-from graspqp.core.initializations import initialize_convex_hull, initialize_tabletop_grasp
+from graspqp.core.initializations import initialize_convex_hull
 from graspqp.core.optimizer import AnnealingDexGraspNet, MalaStar
 from graspqp.hands import AVAILABLE_HANDS, get_hand_model
 from graspqp.metrics import GraspSpanMetricFactory
@@ -77,7 +77,7 @@ parser.add_argument("--tilt_upper", default=45 * math.pi / 180, type=float)
 
 parser.add_argument("--reset_epochs", default=600, type=int)
 parser.add_argument("--optimizer", default="mala_star", type=str, choices=["mala_star", "dexgraspnet"])
-parser.add_argument("--initialization", default="convex_hull", type=str, choices=["random", "convex_hull", "tabletop"])
+parser.add_argument("--initialization", default="convex_hull", type=str, choices=["random", "convex_hull"])
 
 parser.add_argument("--w_prior", default=0.0, type=float)
 parser.add_argument("--w_wall", default=0.0, type=float)
@@ -320,11 +320,8 @@ object_model = ObjectModel(
 )
 object_model.initialize(args.object_code_list)
 
-_initialize = (
-    initialize_tabletop_grasp if args.initialization == "tabletop" else initialize_convex_hull
-)
-if args.initialization in ("convex_hull", "tabletop"):
-    _initialize(hand_model, object_model, args)
+if args.initialization == "convex_hull":
+    initialize_convex_hull(hand_model, object_model, args)
 
 print("n_contact_candidates", hand_model.n_contact_candidates)
 print("total batch size", total_batch_size)
@@ -454,7 +451,7 @@ for step in tqdm(range(1, args.n_iter + 1), desc="optimizing"):
 
             print("Resetting", reset_mask.sum(), "envs")
 
-            _initialize(hand_model, object_model, args, env_mask=reset_mask)
+            initialize_convex_hull(hand_model, object_model, args, env_mask=reset_mask)
             optimizer.reset_envs(reset_mask)
 
     optimizer.zero_grad()
@@ -564,10 +561,7 @@ for step in tqdm(range(1, args.n_iter + 1), desc="optimizing"):
                             step=step,
                         )
 
-    if step == 1 or step % 500 == 0:
-        # Step 1 is the seed: the pose the initializer produced, before the
-        # optimiser has moved it. Without it an initializer change cannot be
-        # told from what the optimisation does with it.
+    if step % 500 == 0:
         export_poses(hand_model, energy, object_model=object_model, suffix=f"_step_{step}")
 
 export_poses(hand_model, energy, object_model=object_model, suffix="")
