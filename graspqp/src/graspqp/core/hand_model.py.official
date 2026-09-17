@@ -1465,46 +1465,6 @@ class HandModel(nn.Module):
         coll = -distances.clamp(max=0).sum(1)
         return coll
 
-    def set_wall_points(self, points):
-        """Extra surface points for the tabletop term only.
-
-        This hand's Allegro ends each finger at ``*_link_3``; the description it
-        was derived from has a tip pad beyond that, and MuJoCo validation uses
-        the pad. A grasp this wall term places exactly on the table therefore
-        puts the validator's fingertip about a centimetre into it. Passing the
-        missing envelope in lets the optimiser search for a pose that clears the
-        table and touches the object at once, rather than being lifted off the
-        table afterwards -- which on a thin object moves the fingers clear of it.
-
-        Nothing else reads these. ``E_pen``, ``E_spen`` and the contact points
-        are untouched, so a run without them reproduces the official behaviour.
-
-        Args:
-            points (dict): link name -> ``(p, 3)`` points in that link's frame.
-        """
-        self._wall_points = {
-            name: torch.as_tensor(value, dtype=torch.float, device=self.device)
-            for name, value in points.items()
-        }
-
-    def get_wall_points(self):
-        """Surface points as the tabletop term should see them."""
-        points = [self.get_surface_points()]
-        extra = getattr(self, "_wall_points", None)
-        if extra:
-            batch_size = self.global_translation.shape[0]
-            for name, local in extra.items():
-                moved = self.current_status[name].transform_points(local)
-                if moved.ndim == 2:
-                    moved = moved.unsqueeze(0)
-                if moved.shape[0] != batch_size:
-                    moved = moved.expand(batch_size, local.shape[0], 3)
-                points.append(
-                    moved @ self.global_rotation.transpose(1, 2)
-                    + self.global_translation.unsqueeze(1)
-                )
-        return torch.cat(points, dim=-2)
-
     def get_surface_points(self):
         """
         Get surface points

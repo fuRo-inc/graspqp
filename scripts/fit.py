@@ -81,6 +81,13 @@ parser.add_argument("--initialization", default="convex_hull", type=str, choices
 
 parser.add_argument("--w_prior", default=0.0, type=float)
 parser.add_argument("--w_wall", default=0.0, type=float)
+parser.add_argument(
+    "--wall_points",
+    default=None,
+    type=str,
+    help="JSON of extra per-link surface points for E_wall only, matching the "
+    "validator's hand envelope. Omit for official behaviour.",
+)
 
 parser.add_argument(
     "--energy_type",
@@ -319,6 +326,18 @@ object_model = ObjectModel(
     device=device,
 )
 object_model.initialize(args.object_code_list)
+
+if args.wall_points is not None:
+    import json as _json
+
+    _wall = _json.load(open(args.wall_points))
+    hand_model.set_wall_points(_wall["points"])
+    print(
+        "E_wall sees",
+        sum(len(v) for v in _wall["points"].values()),
+        "extra points from",
+        args.wall_points,
+    )
 
 _initialize = (
     initialize_tabletop_grasp if args.initialization == "tabletop" else initialize_convex_hull

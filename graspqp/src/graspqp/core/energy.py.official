@@ -132,10 +132,7 @@ def calculate_energy(
         losses["E_prior"] = E_prior
 
     if "E_wall" in energy_names:
-        # get_wall_points is get_surface_points plus whatever envelope the caller
-        # attached, and is identical to it when nothing was attached.
-        surface = getattr(hand_model, "get_wall_points", hand_model.get_surface_points)
-        z_height = surface()[..., -1].clamp(max=0.0)
+        z_height = hand_model.get_surface_points()[..., -1].clamp(max=0.0)
         losses["E_wall"] = z_height.abs().sum(-1)
 
     if "E_manipulativity" in energy_names:
